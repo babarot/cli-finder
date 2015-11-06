@@ -1,0 +1,66 @@
+#!/bin/zsh
+
+dir="${1:-$PWD}"
+while : ${make_dir:=0}; out="$(
+    if [[ $make_dir -eq 0 ]]; then \
+        tree -a -C -I ".git" --charset=C $dir; \
+    else \
+        (builtin cd $dir; \
+        find . -path '*.git*' -prune -o -print \
+        | while read line; do [ -d "$line" ] && echo "$line/" || echo "$line"; done \
+        | sed -e 's|^\./||;/^$/d' \
+        | perl -pe 's/^(.*\/)(.*)$/\033[34m$1\033[m$2/' \
+        ); \
+    fi \
+    | fzf --ansi --multi --no-sort --reverse \
+    --query="$q" --print-query --expect=ctrl-v,ctrl-l,ctrl-g
+    )"; do
+
+    q="$(head -1 <<< "$out")"
+    k="$(head -2 <<< "$out" | tail -1)"
+    res="$(sed '1,2d;/^$/d' <<< "$out")"
+    [ -z "$res" ] && continue
+
+    t="$(
+    if [[ $make_dir -eq 0 ]]; then
+        ok=0
+        arr=(${(@f)"$(tree -a -I ".git" --charset=C $dir)"})
+        for ((i=1; i<=$#arr; i++)); do
+            if [[ $arr[i] == $res ]]; then
+                n=$i
+                break
+            fi
+        done
+        arr=(${(@f)"$(tree -f -a -I ".git" --charset=C $dir)"})
+        perl -pe 's/^(( *(\||`)( |`|-)+)+)//' <<<$arr[n] \
+            | sed -e 's/ -> .*$//'
+    else
+        echo $dir/$res
+    fi
+    )"
+
+    case "$k" in
+        ctrl-g)
+            if [ $make_dir -eq 0 ]; then
+                make_dir=1
+            else
+                make_dir=0
+            fi
+            continue
+            ;;
+        ctrl-l)
+            if [[ -d $t ]]; then
+                ls -l "$t" | less
+            else
+                less "$t"
+            fi
+            ;;
+        ctrl-v)
+            vim "$t"
+            ;;
+        *)
+            echo "$t"
+            exit
+            ;;
+    esac
+done
