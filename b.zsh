@@ -54,27 +54,15 @@ while : ${make_dir:=0}; out="$(
         if [[ $make_dir -eq 0 ]]; then
             ok=0
             arr=(${(@f)"$(tree -a -I ".git" --charset=C ${1:-.})"})
-            for ((i=$#arr; i>=1; i--))
-            do
-                if [[ $ok -eq 0 && $arr[i] == "$res" ]]; then
-                    ok=1
-                    echo $arr[i]
-                    t1="$(perl -pe 's/^(( *\|( |`|-)+)+).*$/$1/' <<<$arr[i])"
+            for ((i=1; i<=$#arr; i++)); do
+                if [[ $arr[i] == $res ]]; then
+                    n=$i
+                    break
                 fi
-                if [[ $ok -eq 1  ]]; then
-                    t2="$(perl -pe 's/^(( *\|( |`|-)+)+).*$/$1/' <<<$arr[i])"
-                    if (( $#t1 <= $#t2 )); then
-                        continue
-                    fi
-                    t1="$(perl -pe 's/^(( *\|( |`|-)+)+).*$/$1/' <<<$arr[i])"
-                    echo $arr[i]
-                fi
-                if [[ $ok -eq 1 ]]; then
-                    if [[ $arr[i] =~ '^(\||`)--' ]]; then
-                        break
-                    fi
-                fi
-            done | reverse | sed -e 's/|//g;s/`//g;s/ //g;s/-//g' | paste -sd/ -
+            done
+            arr=(${(@f)"$(tree -a -I ".git" --charset=C -f ${1:-.})"})
+            perl -pe 's/^(( *\|( |`|-)+)+)//' <<<$arr[n] \
+                | sed -e 's/ -> .*$//'
         else
             echo $res
         fi
