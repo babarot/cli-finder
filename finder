@@ -1,8 +1,10 @@
 #!/bin/zsh
 
+export LESS='-R -f -i -P ?f%f:(stdin). ?lb%lb?L/%L.. [?eEOF:?pb%pb\%..]'
+
 dir="${1:-$PWD}"
-while : ${make_dir:=0}; out="$(
-    if [[ $make_dir -eq 0 ]]; then \
+while : ${CLI_FINDER_MODE:="tree"}; out="$(
+    if [[ $CLI_FINDER_MODE == "tree" ]]; then \
         tree -a -C -I ".git" --charset=C $dir; \
     else \
         (builtin cd $dir; \
@@ -12,8 +14,8 @@ while : ${make_dir:=0}; out="$(
         | perl -pe 's/^(.*\/)(.*)$/\033[34m$1\033[m$2/' \
         ); \
     fi \
-    | fzf --ansi --multi --no-sort --reverse \
-    --query="$q" --print-query --expect=ctrl-v,ctrl-l,ctrl-g
+    | fzf --ansi --no-sort --reverse \
+    --query="$q" --print-query --expect=ctrl-v,ctrl-l,ctrl-r,ctrl-c,ctrl-i
     )"; do
 
     q="$(head -1 <<< "$out")"
@@ -22,7 +24,7 @@ while : ${make_dir:=0}; out="$(
     [ -z "$res" ] && continue
 
     t="$(
-    if [[ $make_dir -eq 0 ]]; then
+    if [[ $CLI_FINDER_MODE == "tree" ]]; then
         ok=0
         arr=(${(@f)"$(tree -a -I ".git" --charset=C $dir)"})
         for ((i=1; i<=$#arr; i++)); do
@@ -40,23 +42,42 @@ while : ${make_dir:=0}; out="$(
     )"
 
     case "$k" in
-        ctrl-g)
-            if [ $make_dir -eq 0 ]; then
-                make_dir=1
+        ctrl-r)
+            if [[ $CLI_FINDER_MODE == "list" ]]; then
+                CLI_FINDER_MODE="tree"
             else
-                make_dir=0
+                CLI_FINDER_MODE="list"
             fi
             continue
             ;;
         ctrl-l)
             if [[ -d $t ]]; then
-                ls -l "$t" | less
+                {
+                    ls -dl "$t"
+                    ls -l "$t"
+                } | less
             else
-                less "$t"
+                if (( $+commands[pygmentize] )); then
+                    get_styles="from pygments.styles import get_all_styles
+                    styles = list(get_all_styles())
+                    print('\n'.join(styles))"
+                    styles=( $(sed -e 's/^  *//g' <<<"$get_styles" | python) )
+                    style=${${(M)styles:#solarized}:-default}
+                    export LESSOPEN="| pygmentize -O style=$style -f console256 -g %s"
+                fi
+                less +Gg "$t"
             fi
             ;;
         ctrl-v)
             vim "$t"
+            ;;
+        ctrl-c)
+            if (( $+commands[pbcopy] )); then
+                echo "$t" | tr -d '\n' | pbcopy
+            fi
+            exit
+            ;;
+        ctrl-i)
             ;;
         *)
             echo "$t"
