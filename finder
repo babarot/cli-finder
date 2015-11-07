@@ -3,7 +3,7 @@
 export LESS='-R -f -i -P ?f%f:(stdin). ?lb%lb?L/%L.. [?eEOF:?pb%pb\%..]'
 
 dir="${1:-$PWD}"
-while : ${CLI_FINDER_MODE:="tree"}; out="$(
+while clear; : ${CLI_FINDER_MODE:="tree"}; out="$(
     if [[ $CLI_FINDER_MODE == "tree" ]]; then \
         tree -a -C -I ".git" --charset=C $dir; \
     else \
