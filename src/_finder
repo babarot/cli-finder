@@ -1,0 +1,15 @@
+#compdef finder
+
+# Copyright (c) 2015 b4b4r07
+# License: MIT
+
+local context curcontext=$curcontext state line
+typeset -A opt_args
+local ret=1
+
+_arguments -C \
+    '(- :)'{-h,--help}'[show this help and exit]' \
+    '(-)*: :_files' \
+    && ret=0
+
+return ret
